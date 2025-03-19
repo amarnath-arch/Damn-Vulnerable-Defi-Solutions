@@ -44,7 +44,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
         if (address(token) != _token) {
             revert UnsupportedCurrency();
         }
-        return 0;
+        return 0; // there is no fee
     }
 
     function flashLoan(IERC3156FlashBorrower _receiver, address _token, uint256 _amount, bytes calldata _data)
@@ -70,7 +70,7 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
 
     function emergencyExit(address receiver) external onlyGovernance {
         uint256 amount = token.balanceOf(address(this));
-        token.transfer(receiver, amount);
+        token.transfer(receiver, amount); // governance can take the emergency exit // kind of a suicide
 
         emit EmergencyExit(receiver, amount);
     }

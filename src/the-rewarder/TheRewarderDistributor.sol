@@ -9,10 +9,10 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 
 struct Distribution {
-    uint256 remaining;
-    uint256 nextBatchNumber;
-    mapping(uint256 batchNumber => bytes32 root) roots;
-    mapping(address claimer => mapping(uint256 word => uint256 bits)) claims;
+    uint256 remaining; // the amount reamining in the current distribution may be @audit-info
+    uint256 nextBatchNumber; // the next batch number
+    mapping(uint256 batchNumber => bytes32 root) roots; // batchNumber -> root
+    mapping(address claimer => mapping(uint256 word => uint256 bits)) claims; // claimer -> word -> bits
 }
 
 struct Claim {
@@ -22,6 +22,9 @@ struct Claim {
     bytes32[] proof;
 }
 
+// merkle proofs
+// bitmaps
+
 /**
  * An efficient token distributor contract based on Merkle proofs and bitmaps
  */
@@ -30,7 +33,8 @@ contract TheRewarderDistributor {
 
     address public immutable owner = msg.sender;
 
-    mapping(IERC20 token => Distribution) public distributions;
+    mapping(IERC20 token => Distribution) public distributions; // distribution weth and dvt tokens
+    // corresponding to the weth and dvt token
 
     error StillDistributing();
     error InvalidRoot();
@@ -49,10 +53,13 @@ contract TheRewarderDistributor {
     }
 
     function getRoot(address token, uint256 batchNumber) external view returns (bytes32) {
-        return distributions[IERC20(token)].roots[batchNumber];
+        return distributions[IERC20(token)].roots[batchNumber]; // getting the merkle root of the current batch number
     }
 
     function createDistribution(IERC20 token, bytes32 newRoot, uint256 amount) external {
+        //@audit-info updating the distribution
+        // distribution -> sanity checks for amount, invalid root , token address is weth and usdc
+        //@audit no sanity checks for token addresses.
         if (amount == 0) revert NotEnoughTokensToDistribute();
         if (newRoot == bytes32(0)) revert InvalidRoot();
         if (distributions[token].remaining != 0) revert StillDistributing();
@@ -73,11 +80,13 @@ contract TheRewarderDistributor {
             IERC20 token = tokens[i];
             if (distributions[token].remaining == 0) {
                 token.transfer(owner, token.balanceOf(address(this)));
+                //@audit-info are there any chances of token being left behind
             }
         }
     }
 
     // Allow claiming rewards of multiple tokens in a single transaction
+
     function claimRewards(Claim[] memory inputClaims, IERC20[] memory inputTokens) external {
         Claim memory inputClaim;
         IERC20 token;
@@ -90,6 +99,7 @@ contract TheRewarderDistributor {
             uint256 wordPosition = inputClaim.batchNumber / 256;
             uint256 bitPosition = inputClaim.batchNumber % 256;
 
+            //@audit-info kind of first person influence
             if (token != inputTokens[inputClaim.tokenIndex]) {
                 if (address(token) != address(0)) {
                     if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
@@ -99,7 +109,7 @@ contract TheRewarderDistributor {
                 bitsSet = 1 << bitPosition; // set bit at given position
                 amount = inputClaim.amount;
             } else {
-                bitsSet = bitsSet | 1 << bitPosition;
+                bitsSet = bitsSet | 1 << bitPosition; // setting the bitPosition according to the bitset
                 amount += inputClaim.amount;
             }
 

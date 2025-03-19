@@ -69,7 +69,7 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
      * @inheritdoc ERC4626
      */
     function totalAssets() public view override nonReadReentrant returns (uint256) {
-        return asset.balanceOf(address(this));
+        return asset.balanceOf(address(this)); // total assets is the asset.balanceOf(address(this))
     }
 
     /**
@@ -79,10 +79,14 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
         external
         returns (bool)
     {
+        // sanity checks
+
         if (amount == 0) revert InvalidAmount(0); // fail early
         if (address(asset) != _token) revert UnsupportedCurrency(); // enforce ERC3156 requirement
         uint256 balanceBefore = totalAssets();
         if (convertToShares(totalSupply) != balanceBefore) revert InvalidBalance(); // enforce ERC4626 requirement
+        // I don't understand this line
+        // total Supply is the supply of the vault token
 
         // transfer tokens out + execute callback on receiver
         ERC20(_token).safeTransfer(address(receiver), amount);
@@ -111,6 +115,8 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
     /**
      * @inheritdoc ERC4626
      */
+
+    // @audit-info before and after deposit deposit hooks are empty
     function afterDeposit(uint256 assets, uint256 shares) internal override nonReentrant whenNotPaused {}
 
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
@@ -121,6 +127,7 @@ contract UnstoppableVault is IERC3156FlashLender, ReentrancyGuard, Owned, ERC462
     }
 
     // Allow owner to execute arbitrary changes when paused
+    //@audit-info delegate call is possible but can be done only by owner.
     function execute(address target, bytes memory data) external onlyOwner whenPaused {
         (bool success,) = target.delegatecall(data);
         require(success);

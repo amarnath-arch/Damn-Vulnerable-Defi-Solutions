@@ -52,16 +52,27 @@ contract BasicForwarder is EIP712 {
         if (signer != request.from) revert InvalidSigner();
     }
 
+    // probably the function that executes the transaction
+
     function execute(Request calldata request, bytes calldata signature) public payable returns (bool success) {
         _checkRequest(request, signature);
+        // check the request corresponding to the signature.
 
         nonces[request.from]++;
 
         uint256 gasLeft;
         uint256 value = request.value; // in wei
         address target = request.target;
+        // payload is the abi encoding of request.data and request.from
         bytes memory payload = abi.encodePacked(request.data, request.from);
         uint256 forwardGas = request.gas;
+
+        // assembly{
+        // success := call(forwardGas, target, value, add(payload,0x20) , mload(payload), 0, 0)
+        // }
+
+        // gas() is for gas left
+
         assembly {
             success := call(forwardGas, target, value, add(payload, 0x20), mload(payload), 0, 0) // don't copy returndata
             gasLeft := gas()
@@ -74,6 +85,7 @@ contract BasicForwarder is EIP712 {
         }
     }
 
+    // getting the doman name and version, chianId and contract Address ?
     function _domainNameAndVersion() internal pure override returns (string memory name, string memory version) {
         name = "BasicForwarder";
         version = "1";

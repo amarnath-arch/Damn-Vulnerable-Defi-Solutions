@@ -16,6 +16,15 @@ contract FlashLoanReceiver is IERC3156FlashBorrower {
         external
         returns (bytes32)
     {
+        // did not account for the msg.sender //@audit // or did they account for it
+
+        // sequence of operations:
+        // 1. check if the msg.sender is pool or not
+        // 2. token is weth or not
+        // 3. return amoiunt is amount + fee
+        // 4. action
+        // 5. approve the pool contract
+
         assembly {
             // gas savings
             if iszero(eq(sload(pool.slot), caller())) {
@@ -23,6 +32,7 @@ contract FlashLoanReceiver is IERC3156FlashBorrower {
                 revert(0x1c, 0x04)
             }
         }
+        // check if the msg.sender is th is the pool contract or not
 
         if (token != address(NaiveReceiverPool(pool).weth())) revert NaiveReceiverPool.UnsupportedCurrency();
 
@@ -40,5 +50,6 @@ contract FlashLoanReceiver is IERC3156FlashBorrower {
     }
 
     // Internal function where the funds received would be used
+    // middle ware when the money will be received
     function _executeActionDuringFlashLoan() internal {}
 }

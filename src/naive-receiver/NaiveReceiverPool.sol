@@ -70,6 +70,8 @@ contract NaiveReceiverPool is Multicall, IERC3156FlashLender {
 
         // Transfer ETH to designated receiver
         weth.transfer(receiver, amount);
+
+        // check effect interaction has been taken care of
     }
 
     function deposit() external payable {
