@@ -9,12 +9,12 @@ import {DamnValuableToken} from "../DamnValuableToken.sol";
 contract PuppetPool is ReentrancyGuard {
     using Address for address payable;
 
-    uint256 public constant DEPOSIT_FACTOR = 2;
+    uint256 public constant DEPOSIT_FACTOR = 2; // the deposit fasctor
 
     address public immutable uniswapPair;
     DamnValuableToken public immutable token;
 
-    mapping(address => uint256) public deposits;
+    mapping(address => uint256) public deposits; // recording the deposits mapping(address => uint256 ) quite like the balance mapping
 
     error NotEnoughCollateral();
     error TransferFailed();
@@ -28,6 +28,7 @@ contract PuppetPool is ReentrancyGuard {
 
     // Allows borrowing tokens by first depositing two times their value in ETH
     function borrow(uint256 amount, address recipient) external payable nonReentrant {
+        // this is the amout and the recipient
         uint256 depositRequired = calculateDepositRequired(amount);
 
         if (msg.value < depositRequired) {
@@ -58,6 +59,6 @@ contract PuppetPool is ReentrancyGuard {
 
     function _computeOraclePrice() private view returns (uint256) {
         // calculates the price of the token in wei according to Uniswap pair
-        return uniswapPair.balance * (10 ** 18) / token.balanceOf(uniswapPair);
+        return uniswapPair.balance * (10 ** 18) / token.balanceOf(uniswapPair); // eth / dvt // value in temrs of eth
     }
 }

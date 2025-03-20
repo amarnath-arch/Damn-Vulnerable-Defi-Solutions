@@ -6,6 +6,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {console} from "forge-std/console.sol";
 
 contract FreeRiderRecoveryManager is ReentrancyGuard, IERC721Receiver {
     using Address for address payable;
@@ -26,7 +27,7 @@ contract FreeRiderRecoveryManager is ReentrancyGuard, IERC721Receiver {
             revert NotEnoughFunds();
         }
         bounty = _bounty;
-        beneficiary = _beneficiary;
+        beneficiary = _beneficiary; // so playe ris the beneficiary
         nft = IERC721(_nft);
         IERC721(_nft).setApprovalForAll(owner, true);
     }
@@ -53,6 +54,9 @@ contract FreeRiderRecoveryManager is ReentrancyGuard, IERC721Receiver {
         if (nft.ownerOf(_tokenId) != address(this)) {
             revert StillNotOwningToken(_tokenId);
         }
+
+        console.log("received here is : ", received);
+        console.log("tokenId here is : ", _tokenId);
 
         if (++received == 6) {
             address recipient = abi.decode(_data, (address));

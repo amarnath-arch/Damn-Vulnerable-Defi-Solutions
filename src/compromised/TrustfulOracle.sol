@@ -9,6 +9,11 @@ import {LibSort} from "solady/utils/LibSort.sol";
  * @notice A price oracle with a number of trusted sources that individually report prices for symbols.
  *         The oracle's price for a given symbol is the median price of the symbol over all sources.
  */
+
+// ques.abi
+// how exchange is using this oracle
+// how exchange is gettin the priuce from the oracle and deciding on the price of the nft
+
 contract TrustfulOracle is AccessControlEnumerable {
     uint256 public constant MIN_SOURCES = 1;
     bytes32 public constant TRUSTED_SOURCE_ROLE = keccak256("TRUSTED_SOURCE_ROLE");
@@ -27,12 +32,12 @@ contract TrustfulOracle is AccessControlEnumerable {
         }
         for (uint256 i = 0; i < sources.length;) {
             unchecked {
-                _grantRole(TRUSTED_SOURCE_ROLE, sources[i]);
+                _grantRole(TRUSTED_SOURCE_ROLE, sources[i]); // sources have been provided with trusted source role
                 ++i;
             }
         }
         if (enableInitialization) {
-            _grantRole(INITIALIZER_ROLE, msg.sender);
+            _grantRole(INITIALIZER_ROLE, msg.sender); // msg.sender has been provided with the intializer role
         }
     }
 
@@ -45,7 +50,7 @@ contract TrustfulOracle is AccessControlEnumerable {
         require(sources.length == symbols.length && symbols.length == prices.length);
         for (uint256 i = 0; i < sources.length;) {
             unchecked {
-                _setPrice(sources[i], symbols[i], prices[i]);
+                _setPrice(sources[i], symbols[i], prices[i]); // setrting the prices for each token symbol
                 ++i;
             }
         }
@@ -61,7 +66,7 @@ contract TrustfulOracle is AccessControlEnumerable {
     }
 
     function getAllPricesForSymbol(string memory symbol) public view returns (uint256[] memory prices) {
-        uint256 numberOfSources = getRoleMemberCount(TRUSTED_SOURCE_ROLE);
+        uint256 numberOfSources = getRoleMemberCount(TRUSTED_SOURCE_ROLE); // i can get the count of the nuber of soruces as well
         prices = new uint256[](numberOfSources);
         for (uint256 i = 0; i < numberOfSources;) {
             address source = getRoleMember(TRUSTED_SOURCE_ROLE, i);
@@ -90,7 +95,7 @@ contract TrustfulOracle is AccessControlEnumerable {
             uint256 rightPrice = prices[prices.length / 2];
             return (leftPrice + rightPrice) / 2;
         } else {
-            return prices[prices.length / 2];
+            return prices[prices.length / 2]; // the middle price which will be zero if sorted in the correct manner and number of sources are 3
         }
     }
 }

