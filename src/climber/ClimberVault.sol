@@ -16,8 +16,8 @@ import {CallerNotSweeper, InvalidWithdrawalAmount, InvalidWithdrawalTime} from "
  * @dev To be deployed behind a proxy following the UUPS pattern. Upgrades are to be triggered by the owner.
  */
 contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    uint256 private _lastWithdrawalTimestamp;
-    address private _sweeper;
+    uint256 private _lastWithdrawalTimestamp; // may be this sis what helps in keeping track of time difference.
+    address private _sweeper; // is the sweeper the one who can sweep all the funds.
 
     modifier onlySweeper() {
         if (msg.sender != _sweeper) {
@@ -28,7 +28,7 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        _disableInitializers();
+        _disableInitializers(); // the intializers have been disabled @audit-info
     }
 
     function initialize(address admin, address proposer, address sweeper) external initializer {
@@ -37,7 +37,7 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         __UUPSUpgradeable_init();
 
         // Deploy timelock and transfer ownership to it
-        transferOwnership(address(new ClimberTimelock(admin, proposer)));
+        transferOwnership(address(new ClimberTimelock(admin, proposer))); // timelock is the new owner.
 
         _setSweeper(sweeper);
         _updateLastWithdrawalTimestamp(block.timestamp);
@@ -45,6 +45,8 @@ contract ClimberVault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     // Allows the owner to send a limited amount of tokens to a recipient every now and then
     function withdraw(address token, address recipient, uint256 amount) external onlyOwner {
+        // sanity check for amount > withdrawal limit
+        // timestamp has been passed or not
         if (amount > WITHDRAWAL_LIMIT) {
             revert InvalidWithdrawalAmount();
         }

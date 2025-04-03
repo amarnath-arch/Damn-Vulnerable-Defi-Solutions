@@ -63,19 +63,22 @@ contract WalletRegistry is IProxyCreationCallback, Ownable {
     /**
      * @notice Function executed when user creates a Safe wallet via SafeProxyFactory::createProxyWithCallback
      *          setting the registry's address as the callback.
+     *
      */
+
+    //@audit-info creation of the safe wallet here
     function proxyCreated(SafeProxy proxy, address singleton, bytes calldata initializer, uint256) external override {
         if (token.balanceOf(address(this)) < PAYMENT_AMOUNT) {
             // fail early
             revert NotEnoughFunds();
         }
 
-        address payable walletAddress = payable(proxy);
+        address payable walletAddress = payable(proxy); // so if I send my Own address as the proxy address
 
         // Ensure correct factory and copy
         if (msg.sender != walletFactory) {
             revert CallerNotFactory();
-        }
+        } //@audit-info check for the msg.sender , so it has to be wallet Factory
 
         if (singleton != singletonCopy) {
             revert FakeSingletonCopy();

