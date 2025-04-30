@@ -10,7 +10,7 @@ import {AuthorizerUpgradeable} from "./AuthorizerUpgradeable.sol";
  * @notice Transparent proxy with an upgrader role handled by its admin.
  */
 contract TransparentProxy is ERC1967Proxy {
-    address public upgrader = msg.sender;
+    address public upgrader = msg.sender; // deployer is msg.msg.sender
 
     constructor(address _logic, bytes memory _data) ERC1967Proxy(_logic, _data) {
         ERC1967Utils.changeAdmin(msg.sender);

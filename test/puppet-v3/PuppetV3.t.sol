@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+    // SPDX-License-Identifier: MIT
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
@@ -118,9 +118,7 @@ contract PuppetV3Challenge is Test {
     /**
      * CODE YOUR SOLUTION HERE
      */
-    function test_puppetV3() public checkSolvedByPlayer {
-        
-    }
+    function test_puppetV3() public checkSolvedByPlayer {}
 
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH

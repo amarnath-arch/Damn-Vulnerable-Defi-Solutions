@@ -2,6 +2,8 @@
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
+import {console} from "forge-std/console.sol";
+
 contract AuthorizerUpgradeable {
     uint256 public needsInit = 1;
     mapping(address => mapping(address => uint256)) private wards;
@@ -13,11 +15,13 @@ contract AuthorizerUpgradeable {
     }
 
     function init(address[] memory _wards, address[] memory _aims) external {
+        console.log("I am here to stay....");
         require(needsInit != 0, "cannot init");
         for (uint256 i = 0; i < _wards.length; i++) {
             _rely(_wards[i], _aims[i]);
         }
         needsInit = 0;
+        console.log("needsInit upgraded to : ", needsInit);
     }
 
     function _rely(address usr, address aim) private {

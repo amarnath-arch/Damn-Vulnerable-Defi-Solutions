@@ -6,10 +6,10 @@ pragma solidity =0.8.25;
 /* ### TIMELOCK CONSTANTS ### */
 /* ########################## */
 
-// keccak256("ADMIN_ROLE");
+// keccak256("ADMIN_ROLE"); has of admin_role
 bytes32 constant ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;
 
-// keccak256("PROPOSER_ROLE");
+// keccak256("PROPOSER_ROLE"); // hash of proposer role
 bytes32 constant PROPOSER_ROLE = 0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1;
 
 uint256 constant MAX_TARGETS = 256;

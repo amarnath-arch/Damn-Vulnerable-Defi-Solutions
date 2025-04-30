@@ -2,6 +2,9 @@
 // Damn Vulnerable DeFi v4 (https://damnvulnerabledefi.xyz)
 pragma solidity =0.8.25;
 
+// This is the interface foer the marketplace
+// would this be necessary
+
 interface IShardsNFTMarketplace {
     struct Offer {
         uint256 nftId;

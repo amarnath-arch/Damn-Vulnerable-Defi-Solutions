@@ -4,6 +4,7 @@ pragma solidity =0.8.25;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {console} from "forge-std/console.sol";
 
 abstract contract AuthorizedExecutor is ReentrancyGuard {
     using Address for address;
@@ -11,7 +12,7 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
     bool public initialized;
 
     // action identifier => allowed
-    mapping(bytes32 => bool) public permissions;
+    mapping(bytes32 => bool) public permissions; // whether a particular set of action is allowed or not
 
     error NotAllowed();
     error AlreadyInitialized();
@@ -47,9 +48,14 @@ abstract contract AuthorizedExecutor is ReentrancyGuard {
         // Read the 4-bytes selector at the beginning of `actionData`
         bytes4 selector;
         uint256 calldataOffset = 4 + 32 * 3; // calldata position where `actionData` begins
+        console.log("I am here");
+
         assembly {
             selector := calldataload(calldataOffset)
         }
+
+        console.log("selector found is :");
+        console.logBytes4(selector);
 
         if (!permissions[getActionId(selector, msg.sender, target)]) {
             revert NotAllowed();

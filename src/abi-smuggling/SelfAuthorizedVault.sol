@@ -18,6 +18,8 @@ contract SelfAuthorizedVault is AuthorizedExecutor {
     error WithdrawalWaitingPeriodNotEnded();
 
     modifier onlyThis() {
+        // self authorization
+
         if (msg.sender != address(this)) {
             revert CallerNotAllowed();
         }

@@ -21,7 +21,7 @@ abstract contract ClimberTimelockBase is AccessControl {
     }
 
     // Operations are tracked by their bytes32 identifier
-    mapping(bytes32 => Operation) public operations;
+    mapping(bytes32 => Operation) public operations; // this contains all the operations.
 
     uint64 public delay;
 
@@ -47,7 +47,7 @@ abstract contract ClimberTimelockBase is AccessControl {
         bytes[] calldata dataElements,
         bytes32 salt
     ) public pure returns (bytes32) {
-        return keccak256(abi.encode(targets, values, dataElements, salt));
+        return keccak256(abi.encode(targets, values, dataElements, salt)); // operatin id is got therough targets. valies,data , salt,
     }
 
     receive() external payable {}

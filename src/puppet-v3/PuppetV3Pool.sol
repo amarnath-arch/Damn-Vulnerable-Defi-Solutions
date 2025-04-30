@@ -54,17 +54,17 @@ contract PuppetV3Pool {
     }
 
     function calculateDepositOfWETHRequired(uint256 amount) public view returns (uint256) {
-        uint256 quote = _getOracleQuote(_toUint128(amount));
-        return quote * DEPOSIT_FACTOR;
+        uint256 quote = _getOracleQuote(_toUint128(amount)); // I am getting the price averaged out for 10 minutes straight
+        return quote * DEPOSIT_FACTOR; // 3 * price
     }
 
     function _getOracleQuote(uint128 amount) private view returns (uint256) {
         (int24 arithmeticMeanTick,) = OracleLibrary.consult({pool: address(uniswapV3Pool), secondsAgo: TWAP_PERIOD});
         return OracleLibrary.getQuoteAtTick({
             tick: arithmeticMeanTick,
-            baseAmount: amount,
-            baseToken: address(token),
-            quoteToken: address(weth)
+            baseAmount: amount, // base Amoutn is amount i.e. token amount
+            baseToken: address(token), // base token is token
+            quoteToken: address(weth) // weth y /x
         });
     }
 
